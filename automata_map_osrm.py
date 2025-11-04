@@ -1,222 +1,179 @@
+import tkinter as tk
 import customtkinter as ctk
-import folium
 import networkx as nx
-import webbrowser
-import threading
-import os
-import requests
-from io import BytesIO
-from PIL import Image
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import folium
 import random
-import time
+import webbrowser
+import os
+import threading
 
-# ------------------------------------
-# CONFIGURACIÓN DEL AUTÓMATA
-# ------------------------------------
-ALPHABET = {"camino", "ruta", "vía"}
-INITIAL_STATE = "A"
-FINAL_STATES = {"H"}
-
-# Coordenadas (Medellín simuladas, extendidas)
-coords = {
-    "A": (6.25184, -75.56359),
-    "B": (6.2442, -75.5812),
-    "C": (6.2705, -75.5721),
-    "D": (6.237, -75.575),
-    "E": (6.2308, -75.5906),
-    "F": (6.275, -75.585),
-    "G": (6.265, -75.600),
-    "H": (6.280, -75.610)
-}
-
-# Grafo con más rutas y pesos (minutos)
-G = nx.Graph()
-edges = [
-    ("A", "B", 5), ("A", "C", 6),
-    ("B", "C", 3), ("B", "D", 5),
-    ("C", "D", 4), ("C", "E", 6),
-    ("D", "E", 5), ("E", "F", 7),
-    ("F", "G", 4), ("G", "H", 6),
-    ("C", "F", 5), ("B", "E", 8),
-    ("A", "F", 10), ("D", "G", 9)
-]
-G.add_weighted_edges_from(edges)
-
-# ------------------------------------
-# CLASE PRINCIPAL
-# ------------------------------------
 class AutomataMapApp(ctk.CTk):
+
     def __init__(self):
         super().__init__()
-        self.title("Autómata de Rutas Satelital - Ruta Óptima Neón")
-        self.geometry("1000x780")
+        self.title("Simulación de Rutas con Autómatas - Vista Satelital 🚗")
+        self.geometry("1200x750")
         ctk.set_appearance_mode("dark")
 
-        self.G = G
-        self.pos = nx.spring_layout(self.G, seed=42)
-        self._build_ui()
-        self._draw_graph()
+        # ---- FRAME PRINCIPAL ----
+        self.frame_main = ctk.CTkFrame(self, corner_radius=15)
+        self.frame_main.pack(padx=20, pady=20, fill="both", expand=True)
 
-    def _build_ui(self):
-        frame = ctk.CTkFrame(self, corner_radius=20)
-        frame.pack(padx=20, pady=20, fill="both", expand=True)
+        self.title_label = ctk.CTkLabel(
+            self.frame_main, text="AUTÓMATA DE RUTAS - MODO SATELITAL",
+            font=("Arial Rounded MT Bold", 24)
+        )
+        self.title_label.pack(pady=15)
 
-        title = ctk.CTkLabel(frame, text="🚗 Simulador de Rutas Satelital (Ruta Óptima en Neón)",
-                             font=("Arial Rounded MT Bold", 22))
-        title.pack(pady=10)
-
-        self.start_entry = ctk.CTkEntry(frame, placeholder_text="Estado inicial (A)", width=200)
+        # Entradas
+        self.start_entry = ctk.CTkEntry(self.frame_main, placeholder_text="Estado inicial (ej: A)", width=200)
         self.start_entry.pack(pady=5)
-        self.end_entry = ctk.CTkEntry(frame, placeholder_text="Estado final (H)", width=200)
+
+        self.end_entry = ctk.CTkEntry(self.frame_main, placeholder_text="Estado final (ej: I)", width=200)
         self.end_entry.pack(pady=5)
 
-        info = ctk.CTkLabel(frame, text=f"Alfabeto: {ALPHABET}\n"
-                                        f"Estado inicial: {INITIAL_STATE}\n"
-                                        f"Estados finales: {FINAL_STATES}\n"
-                                        f"Conjunto de estados: {list(coords.keys())}",
-                            font=("Arial", 14))
-        info.pack(pady=10)
+        # Vincular tecla Enter a la actualización completa
+        self.start_entry.bind("<Return>", lambda e: self._recalculate())
+        self.end_entry.bind("<Return>", lambda e: self._recalculate())
 
-        self.graph_label = ctk.CTkLabel(frame, text="")
-        self.graph_label.pack(pady=10)
-
-        self.result_label = ctk.CTkLabel(frame, text="", justify="left",
-                                         font=("Consolas", 14), text_color="#e5e7eb")
+        self.result_label = ctk.CTkLabel(self.frame_main, text="", font=("Arial", 16))
         self.result_label.pack(pady=10)
 
-        self.bind("<Return>", lambda e: self._on_enter())
+        # Crear grafo y dibujar
+        self._create_graph()
+        self._generate_random_weights()
+        self._draw_graph()
 
-    def _draw_graph(self, path_edges=None):
-        plt.figure(figsize=(5, 4))
-        plt.axis("off")
+        self.graph_label = ctk.CTkLabel(self.frame_main, text="", font=("Consolas", 14))
+        self.graph_label.pack(pady=10)
+        self._update_graph_info()
 
-        edge_colors = []
-        for (u, v) in self.G.edges():
-            edge_colors.append("#facc15" if path_edges and (u, v) in path_edges else "#94a3b8")
+        # Generar mapa inicial
+        threading.Thread(target=self._generate_map, daemon=True).start()
 
-        node_colors = []
-        for n in self.G.nodes():
-            if n in FINAL_STATES:
-                node_colors.append("#16a34a")
-            elif n == INITIAL_STATE:
-                node_colors.append("#2563eb")
-            else:
-                node_colors.append("#60a5fa")
+    # ------------------ CREAR GRAFO ------------------
+    def _create_graph(self):
+        self.G = nx.Graph()
+        nodes = [chr(i) for i in range(65, 74)]  # A-I
+        self.G.add_nodes_from(nodes)
+        edges = [
+            ("A", "B"), ("A", "C"), ("B", "D"), ("C", "D"), ("B", "E"),
+            ("C", "F"), ("E", "G"), ("F", "G"), ("D", "H"), ("G", "H"), ("H", "I"), ("E", "I")
+        ]
+        self.G.add_edges_from(edges)
 
-        nx.draw_networkx(self.G, pos=self.pos, node_color=node_colors, edge_color=edge_colors,
-                         node_size=600, with_labels=True)
-        edge_labels = {(u, v): f"{self.G[u][v]['weight']} min" for u, v in self.G.edges()}
-        nx.draw_networkx_edge_labels(self.G, pos=self.pos, edge_labels=edge_labels, font_size=8)
+    # ------------------ PESOS ALEATORIOS ------------------
+    def _generate_random_weights(self):
+        for u, v in self.G.edges():
+            self.G[u][v]['weight'] = random.randint(1, 3)
 
-        buf = BytesIO()
-        plt.savefig(buf, format="png", transparent=True)
-        plt.close()
-        buf.seek(0)
-        img = Image.open(buf)
-        ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(480, 400))
-        self.graph_label.configure(image=ctk_img)
-        self.graph_label.image = ctk_img
-
-    def _on_enter(self):
-        start = self.start_entry.get().strip().upper()
-        end = self.end_entry.get().strip().upper()
-        if start not in coords or end not in coords:
-            return
+    # ------------------ DIBUJAR GRAFO ------------------
+    def _draw_graph(self):
+        plt.close('all')
+        fig, ax = plt.subplots(figsize=(5.5, 4))
+        pos = nx.spring_layout(self.G, seed=42)
 
         # Todos los caminos posibles
-        all_paths = list(nx.all_simple_paths(self.G, source=start, target=end))
-        shortest_path = nx.shortest_path(self.G, source=start, target=end, weight="weight")
-        path_edges = list(zip(shortest_path, shortest_path[1:]))
-        self._draw_graph(path_edges)
+        nx.draw_networkx_edges(self.G, pos, ax=ax, edge_color='gray', width=2, alpha=0.5)
+        nx.draw_networkx_nodes(self.G, pos, ax=ax, node_size=800, node_color="#1E90FF")
+        nx.draw_networkx_labels(self.G, pos, ax=ax, font_color='white', font_size=10)
 
-        threading.Thread(target=lambda: self._simulate_multiple_routes(all_paths, shortest_path), daemon=True).start()
+        # Ruta óptima
+        start_state = self.start_entry.get().strip().upper() or "A"
+        end_state = self.end_entry.get().strip().upper() or "I"
 
-    def _simulate_multiple_routes(self, all_paths, best_path):
-        m = folium.Map(location=coords[best_path[0]], zoom_start=14, tiles="Esri.WorldImagery")
+        try:
+            path = nx.shortest_path(self.G, source=start_state, target=end_state, weight='weight')
+        except nx.NetworkXNoPath:
+            path = []
 
-        colors = ["#f87171", "#60a5fa", "#34d399", "#facc15", "#c084fc", "#fb923c"]
+        if path:
+            edges_opt = list(zip(path, path[1:]))
+            nx.draw_networkx_edges(self.G, pos, edgelist=edges_opt, ax=ax,
+                                   edge_color="#00FFFF", width=4, alpha=0.9)
 
-        # Mostrar todas las rutas posibles (sin neón)
-        for i, path in enumerate(all_paths):
-            folium.PolyLine([coords[n] for n in path],
-                            color=colors[i % len(colors)], weight=3, opacity=0.5,
-                            tooltip=f"Ruta {i+1}: {' → '.join(path)}").add_to(m)
+        ax.set_title("Grafo de Rutas y Camino Óptimo", fontsize=12, color="white")
+        ax.set_axis_off()
 
-        # Ruta óptima resaltada en neón (efecto doble capa)
-        folium.PolyLine(
-            [coords[n] for n in best_path],
-            color="#00ffff",  # Capa interna brillante
-            weight=12,
-            opacity=0.4
-        ).add_to(m)
-        folium.PolyLine(
-            [coords[n] for n in best_path],
-            color="#0ff",  # Capa externa más intensa
-            weight=6,
-            opacity=0.9,
-            tooltip="⭐ Ruta Óptima (neón)"
-        ).add_to(m)
+        # Limpiar canvas previo si existe
+        if hasattr(self, "graph_canvas"):
+            self.graph_canvas.get_tk_widget().destroy()
 
-        # Marcadores de estados
-        for node, (lat, lon) in coords.items():
-            folium.CircleMarker(location=(lat, lon),
-                                radius=7,
-                                color="#38bdf8" if node not in FINAL_STATES else "#22c55e",
-                                fill=True,
-                                fill_color="#38bdf8",
-                                popup=f"Estado {node}").add_to(m)
+        self.graph_canvas = FigureCanvasTkAgg(fig, master=self.frame_main)
+        self.graph_canvas.draw()
+        self.graph_canvas.get_tk_widget().pack(pady=10)
 
-        # Animación del vehículo sobre todas las rutas
-        car_icon = "https://cdn-icons-png.flaticon.com/512/743/743131.png"
-        js_routes = [ [coords[n] for n in path] for path in all_paths ]
-        js_code = f"""
-        <script>
-        map.whenReady(function() {{
-            var carIcon = L.icon({{
-                iconUrl: '{car_icon}',
-                iconSize: [40, 40],
-                iconAnchor: [20, 20]
-            }});
-            var routes = {js_routes};
-            var marker = L.marker(routes[0][0], {{icon: carIcon}}).addTo(map);
-            var routeIndex = 0;
-            var pointIndex = 0;
+    # ------------------ INFO TEXTUAL ------------------
+    def _update_graph_info(self):
+        info = "⚙️ Conjunto de estados: {" + ", ".join(sorted(self.G.nodes())) + "}\n"
+        info += "🔤 Alfabeto: {0, 1}\n"
+        info += "⚖️ Pesos (aleatorios):\n"
+        for u, v, w in self.G.edges(data='weight'):
+            info += f"  δ({u}, {v}) = {w}\n"
+        self.graph_label.configure(text=info)
 
-            function moveCar() {{
-                if (routeIndex >= routes.length) return;
-                var route = routes[routeIndex];
-                if (pointIndex < route.length) {{
-                    marker.setLatLng(route[pointIndex]);
-                    pointIndex++;
-                    setTimeout(moveCar, 600);
-                }} else {{
-                    routeIndex++;
-                    pointIndex = 0;
-                    setTimeout(moveCar, 1000);
-                }}
-            }}
-            moveCar();
-        }});
-        </script>
-        """
-        m.get_root().html.add_child(folium.Element(js_code))
+    # ------------------ MAPA ------------------
+    def _generate_map(self):
+        start_state = self.start_entry.get().strip().upper() or "A"
+        end_state = self.end_entry.get().strip().upper() or "I"
 
-        file_path = "simulacion_ruta_neon.html"
-        m.save(file_path)
-        webbrowser.open("file://" + os.path.abspath(file_path))
+        positions = {
+            "A": (4.712, -74.113), "B": (4.713, -74.110), "C": (4.711, -74.107),
+            "D": (4.715, -74.108), "E": (4.716, -74.105), "F": (4.710, -74.103),
+            "G": (4.717, -74.100), "H": (4.718, -74.097), "I": (4.719, -74.095)
+        }
 
-        resumen = f"📍 Estado inicial: {best_path[0]}\n🏁 Estado final: {best_path[-1]}\n"
-        resumen += f"\n🛣️ Caminos posibles:\n"
-        for i, path in enumerate(all_paths):
-            resumen += f"  Ruta {i+1}: {' → '.join(path)}\n"
-        resumen += f"\n⭐ Ruta óptima (neón): {' → '.join(best_path)}"
-        self.after(1000, lambda: self.result_label.configure(text=resumen))
+        m = folium.Map(location=positions[start_state], zoom_start=15, tiles="Esri.WorldImagery")
+
+        # Todos los caminos posibles
+        for u, v, data in self.G.edges(data=True):
+            folium.PolyLine([positions[u], positions[v]], color="gray", weight=3, opacity=0.5).add_to(m)
+
+        # Ruta óptima
+        try:
+            path = nx.shortest_path(self.G, source=start_state, target=end_state, weight='weight')
+            total_weight = nx.shortest_path_length(self.G, source=start_state, target=end_state, weight='weight')
+        except nx.NetworkXNoPath:
+            path = []
+            total_weight = None
+
+        if path:
+            coords = [positions[n] for n in path]
+            folium.PolyLine(coords, color="#00FFFF", weight=6, opacity=0.9,
+                            tooltip=f"Ruta óptima (peso total: {total_weight})").add_to(m)
+
+            for i, n in enumerate(path):
+                folium.CircleMarker(location=positions[n],
+                                    radius=8,
+                                    color="#00FFFF" if i in [0, len(path)-1] else "#39FF14",
+                                    fill=True, fill_opacity=0.9,
+                                    popup=f"Estado {n}").add_to(m)
+
+            transition_info = " → ".join(path)
+            result_text = (
+                f"🏁 Estado inicial: {path[0]}\n"
+                f"🎯 Estado final: {path[-1]}\n"
+                f"🛣️ Ruta óptima: {transition_info}\n"
+                f"⚖️ Peso total: {total_weight}\n"
+                f"δ({', '.join(path[:-1])}) → {path[-1]}"
+            )
+            self.result_label.configure(text=result_text)
+
+        map_path = "simulacion_auto_visible.html"
+        m.save(map_path)
+        webbrowser.open("file://" + os.path.abspath(map_path))
+
+    # ------------------ RECALCULAR ------------------
+    def _recalculate(self):
+        """Recalcula todo al presionar Enter"""
+        self._generate_random_weights()
+        self._draw_graph()
+        self._update_graph_info()
+        threading.Thread(target=self._generate_map, daemon=True).start()
 
 
-# ------------------------------------
-# EJECUCIÓN
-# ------------------------------------
 if __name__ == "__main__":
     app = AutomataMapApp()
     app.mainloop()
