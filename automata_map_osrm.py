@@ -8,6 +8,7 @@ import random
 import webbrowser
 import os
 import threading
+import time
 
 class AutomataMapApp(ctk.CTk):
 
@@ -97,7 +98,6 @@ class AutomataMapApp(ctk.CTk):
         ax.set_title("Grafo de Rutas y Camino Óptimo", fontsize=12, color="white")
         ax.set_axis_off()
 
-        # Limpiar canvas previo si existe
         if hasattr(self, "graph_canvas"):
             self.graph_canvas.get_tk_widget().destroy()
 
@@ -131,7 +131,6 @@ class AutomataMapApp(ctk.CTk):
         for u, v, data in self.G.edges(data=True):
             folium.PolyLine([positions[u], positions[v]], color="gray", weight=3, opacity=0.5).add_to(m)
 
-        # Ruta óptima
         try:
             path = nx.shortest_path(self.G, source=start_state, target=end_state, weight='weight')
             total_weight = nx.shortest_path_length(self.G, source=start_state, target=end_state, weight='weight')
@@ -151,6 +150,32 @@ class AutomataMapApp(ctk.CTk):
                                     fill=True, fill_opacity=0.9,
                                     popup=f"Estado {n}").add_to(m)
 
+            # Ícono de coche animado
+            folium.Marker(
+                location=coords[0],
+                icon=folium.Icon(color='lightgray', icon='car', prefix='fa')
+            ).add_to(m)
+
+            # Agregar animación usando JavaScript (Leaflet)
+            js_animation = f"""
+            <script>
+            var latlngs = {coords};
+            var marker = L.marker(latlngs[0], {{
+                icon: L.AwesomeMarkers.icon({{icon: 'car', prefix: 'fa', markerColor: 'blue'}})
+            }}).addTo({{map}});
+            var index = 0;
+            function moveCar() {{
+                if (index < latlngs.length - 1) {{
+                    index++;
+                    marker.setLatLng(latlngs[index]);
+                    setTimeout(moveCar, 1000);
+                }}
+            }}
+            moveCar();
+            </script>
+            """
+            m.get_root().html.add_child(folium.Element(js_animation))
+
             transition_info = " → ".join(path)
             result_text = (
                 f"🏁 Estado inicial: {path[0]}\n"
@@ -161,7 +186,7 @@ class AutomataMapApp(ctk.CTk):
             )
             self.result_label.configure(text=result_text)
 
-        map_path = "simulacion_auto_visible.html"
+        map_path = "simulacion_auto_animado.html"
         m.save(map_path)
         webbrowser.open("file://" + os.path.abspath(map_path))
 
