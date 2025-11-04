@@ -3,10 +3,8 @@ from tkinter import ttk, Canvas, Scrollbar
 import folium
 import random
 import networkx as nx
-from folium.plugins import AntPath
 from io import BytesIO
 import webbrowser
-import os
 from PIL import Image, ImageTk
 import matplotlib.pyplot as plt
 
@@ -44,7 +42,7 @@ def generar_grafo_medellin():
     return G
 
 
-# --- Generar mapa tipo Waze ---
+# --- Generar mapa con animación y efecto neón ---
 def generar_mapa_waze(start, end):
     G = generar_grafo_medellin()
     posiciones = nx.get_node_attributes(G, "pos")
@@ -66,24 +64,61 @@ def generar_mapa_waze(start, end):
 
     mapa = folium.Map(location=posiciones[start], zoom_start=12, tiles="CartoDB positron")
 
-    # Todas las rutas posibles (gris)
+    # --- Rutas posibles en gris ---
     for path in caminos_posibles:
         puntos = [posiciones[n] for n in path]
         folium.PolyLine(puntos, color="gray", weight=3, opacity=0.4).add_to(mapa)
 
-    # Ruta óptima animada (neón)
-    puntos_optimos = [posiciones[n] for n in ruta_optima]
-    AntPath(
-        puntos_optimos,
-        color="#00FFFF",
-        weight=6,
-        opacity=0.9,
-        dash_array=[10, 20],
-        delay=600,
-        pulse_color="#00FFFF"
-    ).add_to(mapa)
+    # --- Ruta óptima en neón ---
+    coords = [posiciones[n] for n in ruta_optima]
+    folium.PolyLine(coords, color="#00FFFF", weight=8, opacity=0.9).add_to(mapa)
 
-    # Nodos
+    # --- Carro animado recorriendo la ruta ---
+    js = f"""
+    <script>
+    var coords = {coords};
+    var marker = L.marker(coords[0], {{
+        icon: L.icon({{
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/743/743922.png',
+            iconSize: [35, 35]
+        }})
+    }}).addTo(map);
+
+    var i = 0;
+    function animateCar() {{
+        if (i < coords.length - 1) {{
+            i++;
+            marker.setLatLng(coords[i]);
+            setTimeout(animateCar, 600);
+        }} else {{
+            i = 0;
+            marker.setLatLng(coords[0]);
+            setTimeout(animateCar, 1000);
+        }}
+    }}
+    animateCar();
+
+    // Efecto neón
+    var neonLine = L.polyline(coords, {{
+        color: '#00FFFF',
+        weight: 8,
+        opacity: 0.9,
+        className: 'neon'
+    }}).addTo(map);
+
+    var css = `
+    <style>
+        .neon {{
+            filter: drop-shadow(0 0 10px #00FFFF) drop-shadow(0 0 25px #00FFFF);
+        }}
+    </style>`;
+    document.head.insertAdjacentHTML('beforeend', css);
+    </script>
+    """
+
+    mapa.get_root().html.add_child(folium.Element(js))
+
+    # --- Nodos ---
     for nodo, (lat, lon) in posiciones.items():
         folium.CircleMarker(
             location=(lat, lon),
@@ -96,21 +131,18 @@ def generar_mapa_waze(start, end):
         ).add_to(mapa)
 
     mapa.save("simulacion_waze.html")
-
     return G, ruta_optima, peso_total
 
 
-# --- Mostrar grafo visual con pesos y caminos ---
+# --- Grafo con pesos visibles ---
 def mostrar_grafo(G, ruta_optima):
     pos = nx.spring_layout(G, seed=42, k=0.45)
     plt.figure(figsize=(13, 10))
     plt.gca().set_facecolor("#0E1E25")
 
-    # Dibujar nodos grandes
     nx.draw_networkx_nodes(G, pos, node_color="#00B8D4", node_size=1100, alpha=0.9)
     nx.draw_networkx_labels(G, pos, font_color="white", font_size=14, font_weight="bold")
 
-    # Dibujar todas las aristas
     edge_colors = []
     for u, v in G.edges():
         if ruta_optima and (u in ruta_optima and v in ruta_optima and abs(ruta_optima.index(u) - ruta_optima.index(v)) == 1):
@@ -119,9 +151,8 @@ def mostrar_grafo(G, ruta_optima):
             edge_colors.append("#7A7A7A")
 
     nx.draw_networkx_edges(G, pos, width=3, edge_color=edge_colors, alpha=0.8)
-
-    # Pesos en color amarillo neón
     edge_labels = nx.get_edge_attributes(G, "weight")
+
     nx.draw_networkx_edge_labels(
         G, pos, edge_labels=edge_labels, font_color="#FFD700",
         font_size=15, font_weight="bold",
@@ -142,7 +173,6 @@ class App:
         self.root.geometry("1380x980")
         self.root.configure(bg="#0E1E25")
 
-        # Canvas con scroll
         self.canvas = Canvas(root, bg="#0E1E25", highlightthickness=0)
         self.scroll_y = Scrollbar(root, orient="vertical", command=self.canvas.yview)
         self.frame = ttk.Frame(self.canvas, padding=40, style="Main.TFrame")
@@ -153,7 +183,6 @@ class App:
         self.canvas.create_window((0, 0), window=self.frame, anchor="nw")
         self.frame.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
 
-        # Estilos
         style = ttk.Style()
         style.theme_use("clam")
         style.configure("Main.TFrame", background="#0E1E25")
@@ -162,10 +191,8 @@ class App:
         style.configure("Title.TLabel", font=("Segoe UI Bold", 24), foreground="#00E5FF", background="#0E1E25")
         style.configure("Result.TLabel", font=("Segoe UI", 12), foreground="#00FFFF", background="#0E1E25")
 
-        # Título
         ttk.Label(self.frame, text="Simulador de Rutas Inteligente", style="Title.TLabel").grid(row=0, column=0, columnspan=3, pady=(0, 30))
 
-        # Entradas
         ttk.Label(self.frame, text="Estado inicial:").grid(row=1, column=0, sticky="e", padx=10, pady=10)
         self.start_entry = ttk.Entry(self.frame, width=6)
         self.start_entry.grid(row=1, column=1, padx=10, pady=10)
@@ -175,14 +202,11 @@ class App:
         self.end_entry = ttk.Entry(self.frame, width=6)
         self.end_entry.grid(row=2, column=1, padx=10, pady=10)
         self.end_entry.insert(0, "J")
-
         self.end_entry.bind("<Return>", lambda e: self._recalculate())
 
-        # Resultados
         self.resultado_label = ttk.Label(self.frame, text="", style="Result.TLabel", justify="center", wraplength=1000)
         self.resultado_label.grid(row=3, column=0, columnspan=3, pady=20)
 
-        # Imagen grafo
         self.grafo_container = tk.Frame(self.frame, bg="#13232F", bd=0, highlightthickness=0)
         self.grafo_container.grid(row=4, column=0, columnspan=3, pady=20)
         self.image_label = ttk.Label(self.grafo_container, background="#13232F")
@@ -198,7 +222,6 @@ class App:
         estados = ", ".join(sorted(G.nodes()))
         alfabeto = "{1, 2, 3}"
 
-        # Función de transición δ
         if ruta_optima:
             transiciones = []
             for i in range(len(ruta_optima) - 1):
@@ -214,9 +237,7 @@ class App:
                      f"Función de transición δ:\n{funcion_transicion}"
             )
         else:
-            self.resultado_label.config(
-                text=f"No hay rutas disponibles desde {start} hasta {end}."
-            )
+            self.resultado_label.config(text=f"No hay rutas disponibles desde {start} hasta {end}.")
 
         img = Image.open("grafo_ruta.png")
         img = img.resize((1100, 800), Image.Resampling.LANCZOS)
@@ -227,7 +248,7 @@ class App:
         webbrowser.open("simulacion_waze.html")
 
 
-# --- Ejecutar ---
+# --- Ejecución ---
 if __name__ == "__main__":
     root = tk.Tk()
     app = App(root)
