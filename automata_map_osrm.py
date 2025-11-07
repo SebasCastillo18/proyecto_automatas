@@ -9,18 +9,34 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.animation as animation
 
-# Coordenadas fijas de puntos en Medellín
+# Nuevos estados con coordenadas representativos de Medellín
 coordenadas_puntos = {
-    "A": (6.2442, -75.5812),
-    "B": (6.2444, -75.5714),
-    "C": (6.2678, -75.5681),
-    "D": (6.2671, -75.5682),
-    "E": (6.2690, -75.5719),
-    "F": (6.2456, -75.5777),
-    "G": (6.2441, -75.5765),
-    "H": (6.2514, -75.5816),
-    "I": (6.2607, -75.5685),
-    "J": (6.2547, -75.5711),
+    "A": (6.2442, -75.5812),  # Centro histórico
+    "B": (6.2460, -75.5760),  # Parque de los Pies Descalzos
+    "C": (6.2547, -75.5711),  # Plaza Botero
+    "D": (6.2514, -75.5816),  # Museo de Antioquia
+    "E": (6.2208, -75.5850),  # Comuna 13
+    "F": (6.2620, -75.5600),  # Parque Explora
+    "G": (6.2420, -75.5650),  # Jardín Botánico
+    "H": (6.2630, -75.5605),  # Pueblito Paisa
+    "I": (6.2730, -75.5740),  # Cerro Nutibara
+    "J": (6.2480, -75.5810),  # Mercado Minorista
+    "K": (6.2700, -75.5700),  # Estadio Atanasio Girardot
+    "L": (6.2590, -75.5700),  # Parque de San Antonio
+    "M": (6.2580, -75.5720),  # Parque de las Luces
+    "N": (6.2890, -75.5680),  # Parque Arví
+    "O": (6.2480, -75.5900),  # Plaza de Cisneros
+    "P": (6.2640, -75.5800),  # Museo Casa de la Memoria
+    "Q": (6.2300, -75.5900),  # La 70 (Zona comercial y cultural)
+    "R": (6.2530, -75.5805),  # Catedral Metropolitana
+    "S": (6.2595, -75.5640),  # Teatro Pablo Tobón Uribe
+    "T": (6.2625, -75.5750),  # Biblioteca Pública Piloto
+    "U": (6.2600, -75.5660),  # Parque de la Presidenta
+    "V": (6.2540, -75.5660),  # Parque Bolívar
+    "W": (6.2500, -75.5770),  # Museo El Castillo
+    "X": (6.2470, -75.5790),  # Archivo Histórico Medellín
+    "Y": (6.2700, -75.5600),  # Universidad de Antioquia
+    "Z": (6.2800, -75.5700),  # Mirador de Las Palmas
 }
 
 def generar_grafo_medellin():
@@ -31,9 +47,13 @@ def generar_grafo_medellin():
         ("A", "B"), ("A", "F"), ("B", "F"), ("B", "H"), ("F", "G"),
         ("F", "E"), ("E", "C"), ("C", "D"), ("C", "I"), ("I", "J"),
         ("H", "J"), ("G", "E"), ("H", "I"),
-        # 10 rutas adicionales para más cobertura
+        ("J", "K"), ("K", "L"), ("L", "M"), ("M", "N"), ("N", "O"),
+        ("O", "P"), ("P", "Q"), ("Q", "R"), ("R", "S"), ("S", "T"),
+        ("T", "U"), ("U", "V"), ("V", "W"), ("W", "X"), ("X", "Y"),
+        ("Y", "Z"), ("Z", "A"),
         ("A", "C"), ("B", "E"), ("D", "F"), ("E", "I"), ("G", "H"),
         ("H", "F"), ("I", "J"), ("D", "G"), ("C", "H"), ("B", "J"),
+        ("M", "Q"), ("N", "R"), ("O", "T"), ("P", "U"),
     ]
     for n1, n2 in conexiones:
         peso = random.randint(1, 3)
@@ -59,7 +79,6 @@ def generar_mapa_waze(start, end, G):
         return [], 0, mapa
     ruta_optima = min(caminos_posibles_filtrados, key=lambda p: sum(G[u][v]['weight'] for u,v in zip(p[:-1],p[1:])))
     peso_total = sum(G[u][v]['weight'] for u,v in zip(ruta_optima[:-1],ruta_optima[1:]))
-
     mapa = folium.Map(location=posiciones[start], zoom_start=14, tiles="OpenStreetMap")
     for path in caminos_posibles_filtrados:
         puntos = [posiciones[n] for n in path]
