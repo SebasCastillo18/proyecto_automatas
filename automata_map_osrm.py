@@ -9,34 +9,14 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.animation as animation
 
-# Nuevos estados con coordenadas representativos de Medellín
 coordenadas_puntos = {
-    "A": (6.2442, -75.5812),  # Centro histórico
-    "B": (6.2460, -75.5760),  # Parque de los Pies Descalzos
-    "C": (6.2547, -75.5711),  # Plaza Botero
-    "D": (6.2514, -75.5816),  # Museo de Antioquia
-    "E": (6.2208, -75.5850),  # Comuna 13
-    "F": (6.2620, -75.5600),  # Parque Explora
-    "G": (6.2420, -75.5650),  # Jardín Botánico
-    "H": (6.2630, -75.5605),  # Pueblito Paisa
-    "I": (6.2730, -75.5740),  # Cerro Nutibara
-    "J": (6.2480, -75.5810),  # Mercado Minorista
-    "K": (6.2700, -75.5700),  # Estadio Atanasio Girardot
-    "L": (6.2590, -75.5700),  # Parque de San Antonio
-    "M": (6.2580, -75.5720),  # Parque de las Luces
-    "N": (6.2890, -75.5680),  # Parque Arví
-    "O": (6.2480, -75.5900),  # Plaza de Cisneros
-    "P": (6.2640, -75.5800),  # Museo Casa de la Memoria
-    "Q": (6.2300, -75.5900),  # La 70 (Zona comercial y cultural)
-    "R": (6.2530, -75.5805),  # Catedral Metropolitana
-    "S": (6.2595, -75.5640),  # Teatro Pablo Tobón Uribe
-    "T": (6.2625, -75.5750),  # Biblioteca Pública Piloto
-    "U": (6.2600, -75.5660),  # Parque de la Presidenta
-    "V": (6.2540, -75.5660),  # Parque Bolívar
-    "W": (6.2500, -75.5770),  # Museo El Castillo
-    "X": (6.2470, -75.5790),  # Archivo Histórico Medellín
-    "Y": (6.2700, -75.5600),  # Universidad de Antioquia
-    "Z": (6.2800, -75.5700),  # Mirador de Las Palmas
+    "A": (6.2442, -75.5812), "B": (6.2460, -75.5760), "C": (6.2547, -75.5711), "D": (6.2514, -75.5816),
+    "E": (6.2208, -75.5850), "F": (6.2620, -75.5600), "G": (6.2420, -75.5650), "H": (6.2630, -75.5605),
+    "I": (6.2730, -75.5740), "J": (6.2480, -75.5810), "K": (6.2700, -75.5700), "L": (6.2590, -75.5700),
+    "M": (6.2580, -75.5720), "N": (6.2890, -75.5680), "O": (6.2480, -75.5900), "P": (6.2640, -75.5800),
+    "Q": (6.2300, -75.5900), "R": (6.2530, -75.5805), "S": (6.2595, -75.5640), "T": (6.2625, -75.5750),
+    "U": (6.2600, -75.5660), "V": (6.2540, -75.5660), "W": (6.2500, -75.5770), "X": (6.2470, -75.5790),
+    "Y": (6.2700, -75.5600), "Z": (6.2800, -75.5700),
 }
 
 def generar_grafo_medellin():
@@ -46,11 +26,11 @@ def generar_grafo_medellin():
     conexiones = [
         ("A", "B"), ("A", "F"), ("B", "F"), ("B", "H"), ("F", "G"),
         ("F", "E"), ("E", "C"), ("C", "D"), ("C", "I"), ("I", "J"),
-        ("H", "J"), ("G", "E"), ("H", "I"),
-        ("J", "K"), ("K", "L"), ("L", "M"), ("M", "N"), ("N", "O"),
-        ("O", "P"), ("P", "Q"), ("Q", "R"), ("R", "S"), ("S", "T"),
-        ("T", "U"), ("U", "V"), ("V", "W"), ("W", "X"), ("X", "Y"),
-        ("Y", "Z"), ("Z", "A"),
+        ("H", "J"), ("G", "E"), ("H", "I"), ("J", "K"), ("K", "L"),
+        ("L", "M"), ("M", "N"), ("N", "O"), ("O", "P"), ("P", "Q"),
+        ("Q", "R"), ("R", "S"), ("S", "T"), ("T", "U"), ("U", "V"),
+        ("V", "W"), ("W", "X"), ("X", "Y"), ("Y", "Z"), ("Z", "A"),
+
         ("A", "C"), ("B", "E"), ("D", "F"), ("E", "I"), ("G", "H"),
         ("H", "F"), ("I", "J"), ("D", "G"), ("C", "H"), ("B", "J"),
         ("M", "Q"), ("N", "R"), ("O", "T"), ("P", "U"),
@@ -67,47 +47,45 @@ def generar_mapa_waze(start, end, G):
     except nx.NetworkXNoPath:
         caminos_posibles = []
     if not caminos_posibles:
-        mapa = folium.Map(location=(6.2442, -75.5812), zoom_start=14, tiles="OpenStreetMap")
-        folium.Marker(location=(6.2442, -75.5812), popup="No hay rutas posibles desde el estado inicial.").add_to(mapa)
+        mapa = folium.Map(location=(6.2442, -75.5812), zoom_start=14)
+        folium.Marker(location=(6.2442, -75.5812), popup="No hay rutas posibles.").add_to(mapa)
         mapa.save("simulacion_waze.html")
         return [], 0, mapa
-    caminos_posibles_filtrados = [p for p in caminos_posibles if all(not G[u][v].get("blocked", False) for u,v in zip(p[:-1],p[1:]))]
+    caminos_posibles_filtrados = [p for p in caminos_posibles if all(not G[u][v].get('blocked', False) for u,v in zip(p[:-1], p[1:]))]
     if not caminos_posibles_filtrados:
-        mapa = folium.Map(location=(6.2442, -75.5812), zoom_start=14, tiles="OpenStreetMap")
-        folium.Marker(location=(6.2442, -75.5812), popup="No hay rutas disponibles por bloqueos.").add_to(mapa)
+        mapa = folium.Map(location=(6.2442, -75.5812), zoom_start=14)
+        folium.Marker(location=(6.2442, -75.5812), popup="No hay rutas disponibles por bloqueo.").add_to(mapa)
         mapa.save("simulacion_waze.html")
         return [], 0, mapa
-    ruta_optima = min(caminos_posibles_filtrados, key=lambda p: sum(G[u][v]['weight'] for u,v in zip(p[:-1],p[1:])))
-    peso_total = sum(G[u][v]['weight'] for u,v in zip(ruta_optima[:-1],ruta_optima[1:]))
-    mapa = folium.Map(location=posiciones[start], zoom_start=14, tiles="OpenStreetMap")
+    ruta_optima = min(caminos_posibles_filtrados, key=lambda p: sum(G[u][v]['weight'] for u,v in zip(p[:-1], p[1:])))
+    peso_total = sum(G[u][v]['weight'] for u,v in zip(ruta_optima[:-1], ruta_optima[1:]))
+
+    mapa = folium.Map(location=posiciones[start], zoom_start=14)
     for path in caminos_posibles_filtrados:
         puntos = [posiciones[n] for n in path]
-        folium.PolyLine(puntos, color="gray", weight=3, opacity=0.4).add_to(mapa)
+        folium.PolyLine(puntos, color='gray', weight=3, opacity=0.4).add_to(mapa)
     coords = [posiciones[n] for n in ruta_optima]
     folium.PolyLine(coords, color="#00FFFF", weight=8, opacity=0.9).add_to(mapa)
     AntPath(
         locations=coords,
-        dash_array=[20, 30],
-        delay=300,
-        color='#00FFFF',
-        pulse_color='#005757',
-        weight=9,
-        opacity=0.9
+        dash_array=[20, 30], delay=300,
+        color='#00FFFF', pulse_color='#005757',
+        weight=9, opacity=0.9
     ).add_to(mapa)
-    for nombre, (lat, lon) in coordenadas_puntos.items():
-        folium.Marker(location=(lat, lon), popup=nombre, icon=folium.Icon(color="blue", icon="info-sign")).add_to(mapa)
+    for n, (lat, lon) in coordenadas_puntos.items():
+        folium.Marker(location=(lat, lon), popup=n, icon=folium.Icon(color="blue", icon="info-sign")).add_to(mapa)
     for u,v,d in G.edges(data=True):
-        if d.get("blocked", False):
-            folium.PolyLine([posiciones[u], posiciones[v]], color="red", weight=5, opacity=0.7, dash_array='5').add_to(mapa)
+        if d.get('blocked', False):
+            folium.PolyLine([posiciones[u], posiciones[v]], color='red', weight=5, opacity=0.7, dash_array='5').add_to(mapa)
     mapa.save("simulacion_waze.html")
     return ruta_optima, peso_total, mapa
 
 class GrafoAnimado:
     def __init__(self, frame, on_edge_click):
-        self.fig, self.ax = plt.subplots(figsize=(13,10))
+        self.fig, self.ax = plt.subplots(figsize=(18,14))
         self.ax.set_facecolor("#0E1E25")
         self.canvas = FigureCanvasTkAgg(self.fig, master=frame)
-        self.canvas.get_tk_widget().pack(padx=15, pady=15, fill='both', expand=True)
+        self.canvas.get_tk_widget().pack(fill='both', expand=True, padx=15, pady=15)
         self.anim = None
         self.G = None
         self.pos = None
@@ -117,22 +95,20 @@ class GrafoAnimado:
         frame.rowconfigure(0, weight=1)
         frame.columnconfigure(0, weight=1)
 
-    def _handle_click(self,event):
-        if self.G is None or self.pos is None:
+    def _handle_click(self, event):
+        if self.G is None or self.pos is None or event.xdata is None or event.ydata is None:
             return
-        x_click,y_click = event.xdata,event.ydata
-        if x_click is None or y_click is None:
-            return
-        tol=0.0005
+        tol = 0.0005
+        x_click, y_click = event.xdata, event.ydata
         for u,v in self.G.edges():
-            x1,y1=self.pos[u]
-            x2,y2=self.pos[v]
-            dx,dy = x2-x1,y2-y1
+            x1,y1 = self.pos[u]
+            x2,y2 = self.pos[v]
+            dx, dy = x2 - x1, y2 - y1
             if dx==dy==0:
                 continue
-            t=max(0,min(1,((x_click-x1)*dx+(y_click-y1)*dy)/(dx*dx+dy*dy)))
-            proj_x,proj_y = x1 + t*dx,y1 + t*dy
-            dist=((proj_x-x_click)**2+(proj_y-y_click)**2)**0.5
+            t = max(0, min(1, ((x_click - x1)*dx + (y_click - y1)*dy) / (dx*dx + dy*dy)))
+            proj_x, proj_y = x1 + t*dx, y1 + t*dy
+            dist = ((proj_x - x_click)**2 + (proj_y - y_click)**2)**0.5
             if dist < tol:
                 self.on_edge_click(u,v)
                 break
@@ -145,24 +121,40 @@ class GrafoAnimado:
 
         def update(frame):
             self.ax.clear()
-            nx.draw_networkx_nodes(G, self.pos, node_color="#00B8D4", node_size=1100, alpha=0.9, ax=self.ax)
+            node_colors = []
+            node_sizes = []
+            for node in G.nodes():
+                if ruta_optima and node == ruta_optima[frame]:
+                    node_colors.append("#00FFFF")
+                    node_sizes.append(1400)
+                else:
+                    node_colors.append("#00B8D4")
+                    node_sizes.append(1100)
+
+            nx.draw_networkx_nodes(G, self.pos, node_color=node_colors, node_size=node_sizes, alpha=0.9, ax=self.ax)
             nx.draw_networkx_labels(G, self.pos, font_color="white", font_size=14, font_weight="bold", ax=self.ax)
 
-            blocked_edges = [(u,v) for u,v,d in G.edges(data=True) if d.get("blocked", False)]
+            blocked_edges = [(u,v) for u,v,d in G.edges(data=True) if d.get('blocked', False)]
             nx.draw_networkx_edges(G, self.pos, edgelist=blocked_edges, width=4, edge_color="red", style="dotted", alpha=0.7, ax=self.ax)
-            normal_edges = [(u,v) for u,v,d in G.edges(data=True) if not d.get("blocked", False)]
+
+            normal_edges = [(u,v) for u,v,d in G.edges(data=True) if not d.get('blocked', False)]
             nx.draw_networkx_edges(G, self.pos, edgelist=normal_edges, width=2, edge_color="#555555", alpha=0.4, ax=self.ax)
 
-            nx.draw_networkx_edge_labels(G, self.pos, edge_labels=edge_labels, font_color="#FFD700", font_size=15, font_weight="bold", bbox=dict(facecolor="#1B263B", edgecolor="none", alpha=0.6), ax=self.ax)
-            if frame < len(ruta_optima) -1:
+            nx.draw_networkx_edge_labels(G, self.pos, edge_labels=edge_labels,
+                                        font_color="#FFD700", font_size=15, font_weight="bold",
+                                        bbox=dict(facecolor="#1B263B", edgecolor="none", alpha=0.6), ax=self.ax)
+
+            if frame < len(ruta_optima) - 1:
                 tramo = [(ruta_optima[frame], ruta_optima[frame+1])]
                 nx.draw_networkx_edges(G, self.pos, edgelist=tramo, width=6, edge_color="#00FFFF", alpha=0.9, ax=self.ax)
+
             self.ax.set_axis_off()
             self.fig.tight_layout()
 
         if self.anim:
             self.anim.event_source.stop()
-        self.anim = animation.FuncAnimation(self.fig, update, frames=len(ruta_optima), interval=800, repeat=True)
+        self.anim = animation.FuncAnimation(self.fig, update, frames=len(ruta_optima),
+                                            interval=900, repeat=True)
         self.canvas.draw()
 
 class App:
@@ -178,8 +170,8 @@ class App:
         self.canvas.configure(yscrollcommand=self.scroll_y.set)
         self.scroll_y.pack(side="right", fill="y")
         self.canvas.pack(side="left", fill="both", expand=True)
-        self.canvas.create_window((0,0), window=self.frame, anchor="nw")
-        self.frame.bind("<Configure>", lambda e:self.canvas.configure(scrollregion=self.canvas.bbox("all")))
+        self.canvas.create_window((0, 0), window=self.frame, anchor="nw")
+        self.frame.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
 
         style = ttk.Style()
         style.theme_use("clam")
@@ -189,15 +181,15 @@ class App:
         style.configure("Title.TLabel", font=("Segoe UI Bold", 24), foreground="#00E5FF", background="#0E1E25")
         style.configure("Result.TLabel", font=("Segoe UI", 12), foreground="#00FFFF", background="#0E1E25")
 
-        ttk.Label(self.frame, text="Simulador de Rutas Inteligente", style="Title.TLabel").grid(row=0, column=0, columnspan=3, pady=(0,30))
+        ttk.Label(self.frame, text="Simulador de Rutas Inteligente", style="Title.TLabel").grid(row=0, column=0, columnspan=3, pady=(0, 30))
         ttk.Label(self.frame, text="Estado inicial:").grid(row=1, column=0, sticky="e", padx=10, pady=10)
         self.start_entry = ttk.Entry(self.frame, width=6)
         self.start_entry.grid(row=1, column=1, padx=10, pady=10)
-        self.start_entry.insert(0,"A")
+        self.start_entry.insert(0, "A")
         ttk.Label(self.frame, text="Estado final:").grid(row=2, column=0, sticky="e", padx=10, pady=10)
         self.end_entry = ttk.Entry(self.frame, width=6)
         self.end_entry.grid(row=2, column=1, padx=10, pady=10)
-        self.end_entry.insert(0,"J")
+        self.end_entry.insert(0, "J")
         self.end_entry.bind("<Return>", lambda e: self._recalculate())
 
         self.resultado_label = ttk.Label(self.frame, text="", style="Result.TLabel", justify="center", wraplength=1000)
@@ -215,11 +207,13 @@ class App:
         self.end = None
 
     def toggle_arista(self, u, v):
+        # Alternar bloqueo
         if self.G[u][v].get("blocked", False):
             self.G[u][v]["blocked"] = False
         else:
             self.G[u][v]["blocked"] = True
 
+        # Recalcular rutas disponibles
         caminos_posibles = list(nx.all_simple_paths(self.G, source=self.start, target=self.end))
         caminos_posibles = [p for p in caminos_posibles if all(not self.G[u][v].get("blocked", False) for u,v in zip(p[:-1], p[1:]))]
 
@@ -228,6 +222,7 @@ class App:
             self.grafo_animado.animar(self.G, [])
             return
 
+        # Elegir mejor ruta tras bloqueo
         self.ruta_optima = min(caminos_posibles, key=lambda p: sum(self.G[u][v]['weight'] for u,v in zip(p[:-1], p[1:])))
         peso_total = sum(self.G[u][v]['weight'] for u,v in zip(self.ruta_optima[:-1], self.ruta_optima[1:]))
 
@@ -235,7 +230,7 @@ class App:
         alfabeto = "{1, 2, 3}"
 
         transiciones = []
-        for i in range(len(self.ruta_optima) -1):
+        for i in range(len(self.ruta_optima) - 1):
             peso = self.G[self.ruta_optima[i]][self.ruta_optima[i+1]]['weight']
             transiciones.append(f"δ({self.ruta_optima[i]}, {peso}) → {self.ruta_optima[i+1]}")
         funcion_transicion = "\n".join(transiciones)
@@ -251,7 +246,6 @@ class App:
         self.grafo_animado.animar(self.G, self.ruta_optima)
 
         posiciones = self.pos if self.pos else coordenadas_puntos
-
         mapa = folium.Map(location=posiciones[self.start], zoom_start=14, tiles="OpenStreetMap")
 
         for nombre, (lat, lon) in coordenadas_puntos.items():
@@ -306,8 +300,8 @@ class App:
         if self.ruta_optima:
             transiciones = []
             for i in range(len(self.ruta_optima) - 1):
-                peso = self.G[self.ruta_optima[i]][self.ruta_optima[i+1]]['weight']
-                transiciones.append(f"δ({self.ruta_optima[i]}, {peso}) → {self.ruta_optima[i+1]}")
+                peso = self.G[self.ruta_optima[i]][self.ruta_optima[i + 1]]['weight']
+                transiciones.append(f"δ({self.ruta_optima[i]}, {peso}) → {self.ruta_optima[i + 1]}")
             funcion_transicion = "\n".join(transiciones)
 
             self.resultado_label.config(
@@ -323,7 +317,6 @@ class App:
         self.grafo_animado.animar(self.G, self.ruta_optima)
 
         posiciones = self.pos if self.pos else coordenadas_puntos
-
         mapa = folium.Map(location=posiciones[self.start], zoom_start=14, tiles="OpenStreetMap")
 
         for nombre, (lat, lon) in coordenadas_puntos.items():
