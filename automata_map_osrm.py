@@ -46,13 +46,13 @@ def generar_mapa_waze(start, end):
     except nx.NetworkXNoPath:
         caminos_posibles = []
     if not caminos_posibles:
-        mapa = folium.Map(location=(6.2442, -75.5812), zoom_start=12, tiles="CartoDB positron")
+        mapa = folium.Map(location=(6.2442, -75.5812), zoom_start=14, tiles="Esri.WorldImagery")
         folium.Marker(location=(6.2442, -75.5812), popup="No hay rutas posibles desde el estado inicial.").add_to(mapa)
         mapa.save("simulacion_waze.html")
         return G, [], 0
     ruta_optima = min(caminos_posibles, key=lambda p: sum(G[u][v]['weight'] for u, v in zip(p[:-1], p[1:])))
     peso_total = sum(G[u][v]['weight'] for u, v in zip(ruta_optima[:-1], ruta_optima[1:]))
-    mapa = folium.Map(location=posiciones[start], zoom_start=12, tiles="CartoDB positron")
+    mapa = folium.Map(location=posiciones[start], zoom_start=14, tiles="Esri.WorldImagery")
     for path in caminos_posibles:
         puntos = [posiciones[n] for n in path]
         folium.PolyLine(puntos, color="gray", weight=3, opacity=0.4).add_to(mapa)
@@ -181,27 +181,30 @@ class App:
         self.grafo_container = ttk.Frame(self.frame)
         self.grafo_container.grid(row=4, column=0, columnspan=3, pady=20)
 
-        self.grafo_animado = GrafoAnimado(self.grafo_container, self.bloquear_arista)
+        self.grafo_animado = GrafoAnimado(self.grafo_container, self.toggle_arista)
         self.pos = None
         self.G = None
         self.ruta_optima = None
         self.start = None
         self.end = None
 
-    def bloquear_arista(self, u, v):
-        if not self.G[u][v].get("blocked", False):
+    def toggle_arista(self, u, v):
+        # Alternar estado bloqueado/desbloqueado
+        if self.G[u][v].get("blocked", False):
+            self.G[u][v]["blocked"] = False
+        else:
             self.G[u][v]["blocked"] = True
 
         caminos_posibles = list(nx.all_simple_paths(self.G, source=self.start, target=self.end))
-        caminos_posibles = [p for p in caminos_posibles if all(not self.G[u][v].get("blocked", False) for u, v in zip(p[:-1], p[1:]))]
+        caminos_posibles = [p for p in caminos_posibles if all(not self.G[u][v].get("blocked", False) for u,v in zip(p[:-1], p[1:]))]
 
         if not caminos_posibles:
             self.resultado_label.config(text=f"No hay rutas disponibles tras bloquear la ruta {u} - {v}.")
             self.grafo_animado.animar(self.G, [])
             return
 
-        self.ruta_optima = min(caminos_posibles, key=lambda p: sum(self.G[u][v]['weight'] for u, v in zip(p[:-1], p[1:])))
-        peso_total = sum(self.G[u][v]['weight'] for u, v in zip(self.ruta_optima[:-1], self.ruta_optima[1:]))
+        self.ruta_optima = min(caminos_posibles, key=lambda p: sum(self.G[u][v]['weight'] for u,v in zip(p[:-1],p[1:])))
+        peso_total = sum(self.G[u][v]['weight'] for u,v in zip(self.ruta_optima[:-1], self.ruta_optima[1:]))
 
         estados = ", ".join(sorted(self.G.nodes()))
         alfabeto = "{1, 2, 3}"
@@ -224,7 +227,8 @@ class App:
 
         posiciones = self.pos if self.pos else nx.spring_layout(self.G, seed=42, k=0.45)
         self.pos = posiciones
-        mapa = folium.Map(location=posiciones[self.start], zoom_start=12, tiles="CartoDB positron")
+
+        mapa = folium.Map(location=posiciones[self.start], zoom_start=14, tiles="Esri.WorldImagery")
 
         for path in caminos_posibles:
             puntos = [posiciones[n] for n in path]
@@ -254,6 +258,7 @@ class App:
     def _recalculate(self):
         self.start = self.start_entry.get().strip().upper()
         self.end = self.end_entry.get().strip().upper()
+
         self.G, self.ruta_optima, peso_total = generar_mapa_waze(self.start, self.end)
         self.pos = nx.spring_layout(self.G, seed=42, k=0.45)
 
@@ -279,7 +284,7 @@ class App:
 
         self.grafo_animado.animar(self.G, self.ruta_optima)
 
-        mapa = folium.Map(location=self.pos[self.start], zoom_start=12, tiles="CartoDB positron")
+        mapa = folium.Map(location=self.pos[self.start], zoom_start=14, tiles="Esri.WorldImagery")
 
         for path in nx.all_simple_paths(self.G, source=self.start, target=self.end):
             puntos = [self.pos[n] for n in path]
