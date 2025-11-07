@@ -1,10 +1,10 @@
 import tkinter as tk
 from tkinter import ttk, Canvas, Scrollbar
 import folium
+from folium.plugins import AntPath
 import random
 import networkx as nx
 import webbrowser
-from PIL import Image, ImageTk
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.animation as animation
@@ -69,9 +69,14 @@ def generar_mapa_waze(start, end, G):
     coords = [posiciones[n] for n in ruta_optima]
     folium.PolyLine(coords, color="#00FFFF", weight=8, opacity=0.9).add_to(mapa)
 
-    for u,v,d in G.edges(data=True):
-        if d.get("blocked", False):
-            folium.PolyLine([posiciones[u], posiciones[v]], color="red", weight=5, opacity=0.7, dash_array='5').add_to(mapa)
+    # Animación de carrito simulada con AntPath
+    AntPath(
+        locations=coords,
+        dash_array=[10, 20],
+        delay=1000,
+        color='#00FFFF',
+        pulse_color='#00FFFF'
+    ).add_to(mapa)
 
     for nombre, (lat, lon) in coordenadas_puntos.items():
         folium.Marker(
@@ -79,6 +84,10 @@ def generar_mapa_waze(start, end, G):
             popup=nombre,
             icon=folium.Icon(color="blue", icon="info-sign")
         ).add_to(mapa)
+
+    for u,v,d in G.edges(data=True):
+        if d.get("blocked", False):
+            folium.PolyLine([posiciones[u], posiciones[v]], color="red", weight=5, opacity=0.7, dash_array='5').add_to(mapa)
 
     mapa.save("simulacion_waze.html")
     return ruta_optima, peso_total, mapa
@@ -102,14 +111,14 @@ class GrafoAnimado:
         x_click, y_click = event.xdata, event.ydata
         if x_click is None or y_click is None:
             return
-        tol = 0.0005  # Ajustada para escala GPS
+        tol = 0.0005
         for u, v in self.G.edges():
             x1, y1 = self.pos[u]
             x2, y2 = self.pos[v]
             dx, dy = x2 - x1, y2 - y1
             if dx == dy == 0:
                 continue
-            t = max(0,min(1,((x_click-x1)*dx+(y_click - y1)*dy)/(dx*dx+dy*dy)))
+            t = max(0,min(1,((x_click-x1)*dx+(y_click-y1)*dy)/(dx*dx+dy*dy)))
             proj_x, proj_y = x1 + t*dx, y1 + t*dy
             dist = ((proj_x - x_click)**2 + (proj_y - y_click)**2)**0.5
             if dist < tol:
@@ -119,7 +128,7 @@ class GrafoAnimado:
     def animar(self, G, ruta_optima):
         self.G = G
         self.ruta_optima = ruta_optima
-        self.pos = nx.get_node_attributes(G, "pos")  # Usar coordenadas reales directamente
+        self.pos = nx.get_node_attributes(G, "pos")
 
         edge_labels = nx.get_edge_attributes(G, "weight")
 
@@ -229,7 +238,6 @@ class App:
         self.grafo_animado.animar(self.G,self.ruta_optima)
 
         posiciones=self.pos if self.pos else coordenadas_puntos
-        self.pos=posiciones
 
         mapa=folium.Map(location=posiciones[self.start],zoom_start=14,tiles="OpenStreetMap")
 
@@ -242,6 +250,16 @@ class App:
 
         coords=[posiciones[n] for n in self.ruta_optima]
         folium.PolyLine(coords,color="#00FFFF",weight=8,opacity=0.9).add_to(mapa)
+
+        # Animación carrito con AntPath
+        from folium.plugins import AntPath
+        AntPath(
+            locations=coords,
+            dash_array=[10, 20],
+            delay=1000,
+            color='#00FFFF',
+            pulse_color='#00FFFF'
+        ).add_to(mapa)
 
         for u_,v_,d_ in self.G.edges(data=True):
             if d_.get("blocked",False):
@@ -294,6 +312,16 @@ class App:
 
         coords=[self.pos[n] for n in self.ruta_optima]
         folium.PolyLine(coords,color="#00FFFF",weight=8,opacity=0.9).add_to(mapa)
+
+        # Animación carrito con AntPath
+        from folium.plugins import AntPath
+        AntPath(
+            locations=coords,
+            dash_array=[10, 20],
+            delay=1000,
+            color='#00FFFF',
+            pulse_color='#00FFFF'
+        ).add_to(mapa)
 
         for u_,v_,d_ in self.G.edges(data=True):
             if d_.get("blocked",False):
