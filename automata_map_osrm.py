@@ -7,6 +7,9 @@ from io import BytesIO
 import webbrowser
 from PIL import Image, ImageTk
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.animation as animation
+
 
 # --- Generar grafo con pesos aleatorios ---
 def generar_grafo_medellin():
@@ -64,61 +67,16 @@ def generar_mapa_waze(start, end):
 
     mapa = folium.Map(location=posiciones[start], zoom_start=12, tiles="CartoDB positron")
 
-    # --- Rutas posibles en gris ---
+    # Rutas posibles en gris
     for path in caminos_posibles:
         puntos = [posiciones[n] for n in path]
         folium.PolyLine(puntos, color="gray", weight=3, opacity=0.4).add_to(mapa)
 
-    # --- Ruta óptima en neón ---
+    # Ruta óptima en neón
     coords = [posiciones[n] for n in ruta_optima]
     folium.PolyLine(coords, color="#00FFFF", weight=8, opacity=0.9).add_to(mapa)
 
-    # --- Carro animado recorriendo la ruta ---
-    js = f"""
-    <script>
-    var coords = {coords};
-    var marker = L.marker(coords[0], {{
-        icon: L.icon({{
-            iconUrl: 'https://cdn-icons-png.flaticon.com/512/743/743922.png',
-            iconSize: [35, 35]
-        }})
-    }}).addTo(map);
-
-    var i = 0;
-    function animateCar() {{
-        if (i < coords.length - 1) {{
-            i++;
-            marker.setLatLng(coords[i]);
-            setTimeout(animateCar, 600);
-        }} else {{
-            i = 0;
-            marker.setLatLng(coords[0]);
-            setTimeout(animateCar, 1000);
-        }}
-    }}
-    animateCar();
-
-    // Efecto neón
-    var neonLine = L.polyline(coords, {{
-        color: '#00FFFF',
-        weight: 8,
-        opacity: 0.9,
-        className: 'neon'
-    }}).addTo(map);
-
-    var css = `
-    <style>
-        .neon {{
-            filter: drop-shadow(0 0 10px #00FFFF) drop-shadow(0 0 25px #00FFFF);
-        }}
-    </style>`;
-    document.head.insertAdjacentHTML('beforeend', css);
-    </script>
-    """
-
-    mapa.get_root().html.add_child(folium.Element(js))
-
-    # --- Nodos ---
+    # Nodos
     for nodo, (lat, lon) in posiciones.items():
         folium.CircleMarker(
             location=(lat, lon),
@@ -134,35 +92,58 @@ def generar_mapa_waze(start, end):
     return G, ruta_optima, peso_total
 
 
-# --- Grafo con pesos visibles ---
-def mostrar_grafo(G, ruta_optima):
-    pos = nx.spring_layout(G, seed=42, k=0.45)
-    plt.figure(figsize=(13, 10))
-    plt.gca().set_facecolor("#0E1E25")
+# --- Grafo con animación de auto en Tkinter ---
+class GrafoAnimado:
+    def __init__(self, frame):
+        self.fig, self.ax = plt.subplots(figsize=(13, 10))
+        self.ax.set_facecolor("#0E1E25")
+        self.canvas = FigureCanvasTkAgg(self.fig, master=frame)
+        self.canvas.get_tk_widget().pack(padx=15, pady=15)
+        self.anim = None
 
-    nx.draw_networkx_nodes(G, pos, node_color="#00B8D4", node_size=1100, alpha=0.9)
-    nx.draw_networkx_labels(G, pos, font_color="white", font_size=14, font_weight="bold")
+    def animar(self, G, ruta_optima):
+        self.ax.clear()
+        pos = nx.spring_layout(G, seed=42, k=0.45)
 
-    edge_colors = []
-    for u, v in G.edges():
-        if ruta_optima and (u in ruta_optima and v in ruta_optima and abs(ruta_optima.index(u) - ruta_optima.index(v)) == 1):
-            edge_colors.append("#00FFFF")
-        else:
-            edge_colors.append("#7A7A7A")
+        nx.draw_networkx_nodes(G, pos, node_color="#00B8D4", node_size=1100, alpha=0.9, ax=self.ax)
+        nx.draw_networkx_labels(G, pos, font_color="white", font_size=14, font_weight="bold", ax=self.ax)
+        edge_labels = nx.get_edge_attributes(G, "weight")
+        nx.draw_networkx_edges(G, pos, width=2, edge_color="#555555", alpha=0.4, ax=self.ax)
+        nx.draw_networkx_edge_labels(
+            G, pos, edge_labels=edge_labels, font_color="#FFD700",
+            font_size=15, font_weight="bold",
+            bbox=dict(facecolor="#1B263B", edgecolor="none", alpha=0.6), ax=self.ax
+        )
 
-    nx.draw_networkx_edges(G, pos, width=3, edge_color=edge_colors, alpha=0.8)
-    edge_labels = nx.get_edge_attributes(G, "weight")
+        self.ruta_optima = ruta_optima
+        self.pos = pos
+        self.current_index = 0
+        self.line_progress = None
 
-    nx.draw_networkx_edge_labels(
-        G, pos, edge_labels=edge_labels, font_color="#FFD700",
-        font_size=15, font_weight="bold",
-        bbox=dict(facecolor="#1B263B", edgecolor="none", alpha=0.6)
-    )
+        def update(frame):
+            self.ax.clear()
+            nx.draw_networkx_nodes(G, pos, node_color="#00B8D4", node_size=1100, alpha=0.9, ax=self.ax)
+            nx.draw_networkx_labels(G, pos, font_color="white", font_size=14, font_weight="bold", ax=self.ax)
+            nx.draw_networkx_edges(G, pos, width=2, edge_color="#555555", alpha=0.4, ax=self.ax)
+            nx.draw_networkx_edge_labels(
+                G, pos, edge_labels=edge_labels, font_color="#FFD700",
+                font_size=15, font_weight="bold",
+                bbox=dict(facecolor="#1B263B", edgecolor="none", alpha=0.6), ax=self.ax
+            )
 
-    plt.axis("off")
-    plt.tight_layout()
-    plt.savefig("grafo_ruta.png", facecolor="#0E1E25", dpi=160)
-    plt.close()
+            # Dibuja el tramo actual resaltado simulando el auto en la ruta
+            if frame < len(ruta_optima) - 1:
+                tramo = [(ruta_optima[frame], ruta_optima[frame + 1])]
+                nx.draw_networkx_edges(G, pos, edgelist=tramo, width=6, edge_color="#00FFFF", alpha=0.9, ax=self.ax)
+
+            self.ax.set_axis_off()
+            self.fig.tight_layout()
+
+        if self.anim:
+            self.anim.event_source.stop()
+
+        self.anim = animation.FuncAnimation(self.fig, update, frames=len(ruta_optima), interval=800, repeat=True)
+        self.canvas.draw()
 
 
 # --- Interfaz principal ---
@@ -207,17 +188,16 @@ class App:
         self.resultado_label = ttk.Label(self.frame, text="", style="Result.TLabel", justify="center", wraplength=1000)
         self.resultado_label.grid(row=3, column=0, columnspan=3, pady=20)
 
-        self.grafo_container = tk.Frame(self.frame, bg="#13232F", bd=0, highlightthickness=0)
+        self.grafo_container = ttk.Frame(self.frame)
         self.grafo_container.grid(row=4, column=0, columnspan=3, pady=20)
-        self.image_label = ttk.Label(self.grafo_container, background="#13232F")
-        self.image_label.pack(padx=15, pady=15)
+
+        self.grafo_animado = GrafoAnimado(self.grafo_container)
 
     def _recalculate(self):
         start = self.start_entry.get().strip().upper()
         end = self.end_entry.get().strip().upper()
 
         G, ruta_optima, peso_total = generar_mapa_waze(start, end)
-        mostrar_grafo(G, ruta_optima)
 
         estados = ", ".join(sorted(G.nodes()))
         alfabeto = "{1, 2, 3}"
@@ -225,7 +205,7 @@ class App:
         if ruta_optima:
             transiciones = []
             for i in range(len(ruta_optima) - 1):
-                peso = G[ruta_optima[i]][ruta_optima[i+1]]['weight']
+                peso = G[ruta_optima[i]][ruta_optima[i + 1]]['weight']
                 transiciones.append(f"δ({ruta_optima[i]}, {peso}) → {ruta_optima[i+1]}")
             funcion_transicion = "\n".join(transiciones)
 
@@ -239,11 +219,7 @@ class App:
         else:
             self.resultado_label.config(text=f"No hay rutas disponibles desde {start} hasta {end}.")
 
-        img = Image.open("grafo_ruta.png")
-        img = img.resize((1100, 800), Image.Resampling.LANCZOS)
-        img_tk = ImageTk.PhotoImage(img)
-        self.image_label.config(image=img_tk)
-        self.image_label.image = img_tk
+        self.grafo_animado.animar(G, ruta_optima)
 
         webbrowser.open("simulacion_waze.html")
 
