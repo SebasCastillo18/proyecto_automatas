@@ -1,7 +1,9 @@
+import os
 import tkinter as tk
-from tkinter import ttk, Canvas, Scrollbar, Text, END
+from tkinter import ttk, Canvas, Scrollbar
 import folium
 from folium.plugins import AntPath
+from folium.features import CustomIcon
 import random
 import networkx as nx
 import webbrowser
@@ -9,14 +11,50 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.animation as animation
 
+# Mapa legible nombre por nodo
+lugares_medellin = {
+    "A": "Estadio Atanasio Girardot",
+    "B": "Parque de los Pies Descalzos",
+    "C": "Plaza Botero",
+    "D": "Museo de Antioquia",
+    "E": "Comuna 13",
+    "F": "Parque Explora",
+    "G": "Jardín Botánico",
+    "H": "Pueblito Paisa",
+    "I": "Cerro Nutibara",
+    "J": "Mercado Minorista",
+    "K": "Biblioteca Pública Piloto",
+    "L": "Parque de San Antonio",
+    "M": "Parque de las Luces",
+    "N": "Parque Arví",
+    "O": "Plaza de Cisneros",
+    "P": "Museo Casa de la Memoria",
+    "Q": "La 70",
+    "R": "Catedral Metropolitana",
+    "S": "Teatro Pablo Tobón Uribe",
+    "T": "Parque de la Presidenta",
+    "U": "Parque Bolívar",
+    "V": "Museo El Castillo",
+    "W": "Archivo Histórico Medellín",
+    "X": "Universidad de Antioquia",
+    "Y": "Mirador de Las Palmas",
+    "Z": "Parque Norte",
+    "AA": "Barrio Laureles",
+    "BB": "Barrio Envigado"
+}
+
 coordenadas_puntos = {
-    "A": (6.2442, -75.5812), "B": (6.2460, -75.5760), "C": (6.2547, -75.5711), "D": (6.2514, -75.5816),
-    "E": (6.2208, -75.5850), "F": (6.2620, -75.5600), "G": (6.2420, -75.5650), "H": (6.2630, -75.5605),
-    "I": (6.2730, -75.5740), "J": (6.2480, -75.5810), "K": (6.2700, -75.5700), "L": (6.2590, -75.5700),
-    "M": (6.2580, -75.5720), "N": (6.2890, -75.5680), "O": (6.2480, -75.5900), "P": (6.2640, -75.5800),
-    "Q": (6.2300, -75.5900), "R": (6.2530, -75.5805), "S": (6.2595, -75.5640), "T": (6.2625, -75.5750),
-    "U": (6.2600, -75.5660), "V": (6.2540, -75.5660), "W": (6.2500, -75.5770), "X": (6.2470, -75.5790),
+    "A": (6.2442, -75.5812), "B": (6.2460, -75.5760), "C": (6.2547, -75.5711),
+    "D": (6.2514, -75.5816), "E": (6.2208, -75.5850), "F": (6.2620, -75.5600),
+    "G": (6.2420, -75.5650), "H": (6.2630, -75.5605), "I": (6.2730, -75.5740),
+    "J": (6.2480, -75.5810), "K": (6.2700, -75.5700), "L": (6.2590, -75.5700),
+    "M": (6.2580, -75.5720), "N": (6.2890, -75.5680), "O": (6.2480, -75.5900),
+    "P": (6.2640, -75.5800), "Q": (6.2300, -75.5900), "R": (6.2530, -75.5805),
+    "S": (6.2595, -75.5640), "T": (6.2625, -75.5750), "U": (6.2600, -75.5660),
+    "V": (6.2540, -75.5660), "W": (6.2500, -75.5770), "X": (6.2470, -75.5790),
     "Y": (6.2700, -75.5600), "Z": (6.2800, -75.5700),
+    "AA": (6.2400, -75.5700), "BB": (6.2350, -75.5800),
+    "CC": (6.2700, -75.5900), "DD": (6.2800, -75.6000), "EE": (6.2600, -75.6000)
 }
 
 def generar_grafo_medellin():
@@ -24,65 +62,64 @@ def generar_grafo_medellin():
     for nodo, coord in coordenadas_puntos.items():
         G.add_node(nodo, pos=coord)
     conexiones = [
-        ("A", "B"), ("A", "F"), ("B", "F"), ("B", "H"), ("F", "G"),
-        ("F", "E"), ("E", "C"), ("C", "D"), ("C", "I"), ("I", "J"),
-        ("H", "J"), ("G", "E"), ("H", "I"), ("J", "K"), ("K", "L"),
-        ("L", "M"), ("M", "N"), ("N", "O"), ("O", "P"), ("P", "Q"),
-        ("Q", "R"), ("R", "S"), ("S", "T"), ("T", "U"), ("U", "V"),
-        ("V", "W"), ("W", "X"), ("X", "Y"), ("Y", "Z"), ("Z", "A"),
-
-        ("A", "C"), ("B", "E"), ("D", "F"), ("E", "I"), ("G", "H"),
-        ("H", "F"), ("I", "J"), ("D", "G"), ("C", "H"), ("B", "J"),
-        ("M", "Q"), ("N", "R"), ("O", "T"), ("P", "U"),
+        ("A", "B"), ("A", "F"), ("B", "F"), ("B", "H"), ("F", "G"), ("F", "E"),
+        ("E", "C"), ("C", "D"), ("C", "I"), ("I", "J"), ("H", "J"), ("G", "E"),
+        ("H", "I"), ("J", "K"), ("K", "L"), ("L", "M"), ("M", "N"), ("N", "O"),
+        ("O", "P"), ("P", "Q"), ("Q", "R"), ("R", "S"), ("S", "T"), ("T", "U"),
+        ("U", "V"), ("V", "W"), ("W", "X"), ("X", "Y"), ("Y", "Z"), ("Z", "A"),
+        ("Z", "AA"), ("AA", "BB"), ("BB", "CC"), ("CC", "DD"), ("DD", "EE"),
+        ("EE", "P"), ("BB", "Q"), ("AA", "G"), ("CC", "N"), ("DD", "O"),
+        ("EE", "M"), ("AA", "X"), ("BB", "Y"), ("CC", "V"), ("DD", "U"),
     ]
     for n1, n2 in conexiones:
-        peso = random.randint(1, 3)
+        peso = random.randint(1, 3)  # ajustado según solicitud
         G.add_edge(n1, n2, weight=peso, blocked=False)
     return G
 
 def generar_mapa_waze(start, end, G):
     posiciones = nx.get_node_attributes(G, "pos")
     try:
-        caminos_posibles = list(nx.all_simple_paths(G, source=start, target=end))
+        caminos = list(nx.all_simple_paths(G, source=start, target=end))
     except nx.NetworkXNoPath:
-        caminos_posibles = []
-    if not caminos_posibles:
+        caminos = []
+    if not caminos:
         mapa = folium.Map(location=(6.2442, -75.5812), zoom_start=14)
-        folium.Marker(location=(6.2442, -75.5812), popup="No hay rutas posibles.").add_to(mapa)
+        folium.Marker(location=(6.2442, -75.5812), popup="No hay rutas posibles").add_to(mapa)
         mapa.save("simulacion_waze.html")
+        file_path = os.path.abspath("simulacion_waze.html")
+        webbrowser.open(f"file://{file_path}")
         return [], 0, mapa
-    caminos_posibles_filtrados = [p for p in caminos_posibles if all(not G[u][v].get('blocked', False) for u,v in zip(p[:-1], p[1:]))]
-    if not caminos_posibles_filtrados:
+    caminos_disp = [p for p in caminos if all(not G[u][v].get('blocked', False) for u,v in zip(p[:-1], p[1:]))]
+    if not caminos_disp:
         mapa = folium.Map(location=(6.2442, -75.5812), zoom_start=14)
-        folium.Marker(location=(6.2442, -75.5812), popup="No hay rutas disponibles por bloqueo.").add_to(mapa)
+        folium.Marker(location=(6.2442, -75.5812), popup="No hay rutas disponibles por bloqueo").add_to(mapa)
         mapa.save("simulacion_waze.html")
+        file_path = os.path.abspath("simulacion_waze.html")
+        webbrowser.open(f"file://{file_path}")
         return [], 0, mapa
-    ruta_optima = min(caminos_posibles_filtrados, key=lambda p: sum(G[u][v]['weight'] for u,v in zip(p[:-1], p[1:])))
-    peso_total = sum(G[u][v]['weight'] for u,v in zip(ruta_optima[:-1], ruta_optima[1:]))
+    ruta = min(caminos_disp, key=lambda p: sum(G[u][v]['weight'] for u,v in zip(p[:-1], p[1:])))
+    peso = sum(G[u][v]['weight'] for u,v in zip(ruta[:-1], ruta[1:]))
 
     mapa = folium.Map(location=posiciones[start], zoom_start=14)
-    for path in caminos_posibles_filtrados:
-        puntos = [posiciones[n] for n in path]
-        folium.PolyLine(puntos, color='gray', weight=3, opacity=0.4).add_to(mapa)
-    coords = [posiciones[n] for n in ruta_optima]
+    for path in caminos_disp:
+        pts = [posiciones[n] for n in path]
+        folium.PolyLine(pts, color='gray', weight=3, opacity=0.4).add_to(mapa)
+    coords = [posiciones[n] for n in ruta]
     folium.PolyLine(coords, color="#00FFFF", weight=8, opacity=0.9).add_to(mapa)
-    AntPath(
-        locations=coords,
-        dash_array=[20, 30], delay=300,
-        color='#00FFFF', pulse_color='#005757',
-        weight=9, opacity=0.9
-    ).add_to(mapa)
+    AntPath(locations=coords, dash_array=[20, 30], delay=300, color='#00FFFF', pulse_color='#005757', weight=9, opacity=0.9).add_to(mapa)
     for n, (lat, lon) in coordenadas_puntos.items():
         folium.Marker(location=(lat, lon), popup=n, icon=folium.Icon(color="blue", icon="info-sign")).add_to(mapa)
     for u,v,d in G.edges(data=True):
         if d.get('blocked', False):
             folium.PolyLine([posiciones[u], posiciones[v]], color='red', weight=5, opacity=0.7, dash_array='5').add_to(mapa)
     mapa.save("simulacion_waze.html")
-    return ruta_optima, peso_total, mapa
+    file_path = os.path.abspath("simulacion_waze.html")
+    webbrowser.open(f"file://{file_path}")
+    return ruta, peso, mapa
 
 class GrafoAnimado:
     def __init__(self, frame, on_edge_click):
-        self.fig, self.ax = plt.subplots(figsize=(18,14))
+        self.fig, self.ax = plt.subplots(figsize=(20,16))
         self.ax.set_facecolor("#0E1E25")
         self.canvas = FigureCanvasTkAgg(self.fig, master=frame)
         self.canvas.get_tk_widget().pack(fill='both', expand=True, padx=15, pady=15)
@@ -94,6 +131,7 @@ class GrafoAnimado:
         self.canvas.mpl_connect("button_press_event", self._handle_click)
         frame.rowconfigure(0, weight=1)
         frame.columnconfigure(0, weight=1)
+
 
     def _handle_click(self, event):
         if self.G is None or self.pos is None or event.xdata is None or event.ydata is None:
@@ -113,12 +151,15 @@ class GrafoAnimado:
                 self.on_edge_click(u,v)
                 break
 
+
     def animar(self, G, ruta_optima):
         self.G = G
         self.ruta_optima = ruta_optima
         self.pos = nx.get_node_attributes(G, "pos")
         edge_labels = nx.get_edge_attributes(G, "weight")
 
+
+        grados = dict(G.degree())
         def update(frame):
             self.ax.clear()
             node_colors = []
@@ -126,30 +167,34 @@ class GrafoAnimado:
             for node in G.nodes():
                 if ruta_optima and node == ruta_optima[frame]:
                     node_colors.append("#00FFFF")
-                    node_sizes.append(1400)
+                    node_sizes.append(2000 + 40*grados[node])
                 else:
                     node_colors.append("#00B8D4")
-                    node_sizes.append(1100)
+                    node_sizes.append(1500 + 30*grados[node])
+
 
             nx.draw_networkx_nodes(G, self.pos, node_color=node_colors, node_size=node_sizes, alpha=0.9, ax=self.ax)
-            nx.draw_networkx_labels(G, self.pos, font_color="white", font_size=14, font_weight="bold", ax=self.ax)
+            nx.draw_networkx_labels(G, self.pos, font_color="white", font_size=18, font_weight="bold", ax=self.ax)
 
-            blocked_edges = [(u,v) for u,v,d in G.edges(data=True) if d.get('blocked', False)]
-            nx.draw_networkx_edges(G, self.pos, edgelist=blocked_edges, width=4, edge_color="red", style="dotted", alpha=0.7, ax=self.ax)
 
-            normal_edges = [(u,v) for u,v,d in G.edges(data=True) if not d.get('blocked', False)]
-            nx.draw_networkx_edges(G, self.pos, edgelist=normal_edges, width=2, edge_color="#555555", alpha=0.4, ax=self.ax)
+            blocked_edges = [(u,v) for u,v,d in G.edges(data=True) if d.get("blocked", False)]
+            nx.draw_networkx_edges(G, self.pos, edgelist=blocked_edges, width=8, edge_color="red", style="dotted", alpha=0.7, ax=self.ax)
 
-            nx.draw_networkx_edge_labels(G, self.pos, edge_labels=edge_labels,
-                                        font_color="#FFD700", font_size=15, font_weight="bold",
-                                        bbox=dict(facecolor="#1B263B", edgecolor="none", alpha=0.6), ax=self.ax)
+
+            normal_edges = [(u,v) for u,v,d in G.edges(data=True) if not d.get("blocked", False)]
+            nx.draw_networkx_edges(G, self.pos, edgelist=normal_edges, width=5, edge_color="#555555", alpha=0.6, ax=self.ax)
+
+
+            nx.draw_networkx_edge_labels(G, self.pos, edge_labels=edge_labels, font_color="#FFD700", font_size=20, font_weight="bold", bbox=dict(facecolor="#1B263B", edgecolor="none", alpha=0.9), ax=self.ax)
+
 
             if frame < len(ruta_optima) - 1:
-                tramo = [(ruta_optima[frame], ruta_optima[frame+1])]
-                nx.draw_networkx_edges(G, self.pos, edgelist=tramo, width=6, edge_color="#00FFFF", alpha=0.9, ax=self.ax)
+                tramo = [(ruta_optima[frame], ruta_optima[frame + 1])]
+                nx.draw_networkx_edges(G, self.pos, edgelist=tramo, width=12, edge_color="#00FFFF", alpha=0.9, ax=self.ax)
 
             self.ax.set_axis_off()
             self.fig.tight_layout()
+
 
         if self.anim:
             self.anim.event_source.stop()
@@ -183,14 +228,16 @@ class App:
 
         ttk.Label(self.frame, text="Simulador de Rutas Inteligente", style="Title.TLabel").grid(row=0, column=0, columnspan=3, pady=(0, 30))
         ttk.Label(self.frame, text="Estado inicial:").grid(row=1, column=0, sticky="e", padx=10, pady=10)
-        self.start_entry = ttk.Entry(self.frame, width=6)
-        self.start_entry.grid(row=1, column=1, padx=10, pady=10)
-        self.start_entry.insert(0, "A")
+        self.start_combo = ttk.Combobox(self.frame, values=[f"{k} - {v}" for k,v in lugares_medellin.items()], width=35, state="readonly")
+        self.start_combo.grid(row=1, column=1, padx=10, pady=10)
+        self.start_combo.set("A - Estadio Atanasio Girardot")
         ttk.Label(self.frame, text="Estado final:").grid(row=2, column=0, sticky="e", padx=10, pady=10)
-        self.end_entry = ttk.Entry(self.frame, width=6)
-        self.end_entry.grid(row=2, column=1, padx=10, pady=10)
-        self.end_entry.insert(0, "J")
-        self.end_entry.bind("<Return>", lambda e: self._recalculate())
+        self.end_combo = ttk.Combobox(self.frame, values=[f"{k} - {v}" for k,v in lugares_medellin.items()], width=35, state="readonly")
+        self.end_combo.grid(row=2, column=1, padx=10, pady=10)
+        self.end_combo.set("J - Mercado Minorista")
+
+        self.start_combo.bind("<<ComboboxSelected>>", lambda e: self._on_combo_change())
+        self.end_combo.bind("<<ComboboxSelected>>", lambda e: self._on_combo_change())
 
         self.resultado_label = ttk.Label(self.frame, text="", style="Result.TLabel", justify="center", wraplength=1000)
         self.resultado_label.grid(row=3, column=0, columnspan=3, pady=20)
@@ -206,47 +253,66 @@ class App:
         self.start = None
         self.end = None
 
+        self._recalculate()
+
+    def _on_combo_change(self):
+        self.start = self.start_combo.get().split(" - ")[0]
+        self.end = self.end_combo.get().split(" - ")[0]
+        self._recalculate()
+
     def toggle_arista(self, u, v):
-        # Alternar bloqueo
         if self.G[u][v].get("blocked", False):
             self.G[u][v]["blocked"] = False
         else:
             self.G[u][v]["blocked"] = True
 
-        # Recalcular rutas disponibles
         caminos_posibles = list(nx.all_simple_paths(self.G, source=self.start, target=self.end))
-        caminos_posibles = [p for p in caminos_posibles if all(not self.G[u][v].get("blocked", False) for u,v in zip(p[:-1], p[1:]))]
+        caminos_posibles = [
+            p for p in caminos_posibles if all(not self.G[u][v].get("blocked", False) for u, v in zip(p[:-1], p[1:]))
+        ]
 
         if not caminos_posibles:
             self.resultado_label.config(text=f"No hay rutas disponibles tras bloquear la ruta {u} - {v}.")
             self.grafo_animado.animar(self.G, [])
             return
 
-        # Elegir mejor ruta tras bloqueo
-        self.ruta_optima = min(caminos_posibles, key=lambda p: sum(self.G[u][v]['weight'] for u,v in zip(p[:-1], p[1:])))
-        peso_total = sum(self.G[u][v]['weight'] for u,v in zip(self.ruta_optima[:-1], self.ruta_optima[1:]))
+        self.ruta_optima = min(
+            caminos_posibles,
+            key=lambda p: sum(self.G[u][v]["weight"] for u, v in zip(p[:-1], p[1:])),
+        )
+        peso_total = sum(self.G[u][v]["weight"] for u, v in zip(self.ruta_optima[:-1], self.ruta_optima[1:]))
 
         estados = ", ".join(sorted(self.G.nodes()))
         alfabeto = "{1, 2, 3}"
 
         transiciones = []
         for i in range(len(self.ruta_optima) - 1):
-            peso = self.G[self.ruta_optima[i]][self.ruta_optima[i+1]]['weight']
-            transiciones.append(f"δ({self.ruta_optima[i]}, {peso}) → {self.ruta_optima[i+1]}")
+            peso = self.G[self.ruta_optima[i]][self.ruta_optima[i + 1]]["weight"]
+            transiciones.append(f"δ({self.ruta_optima[i]}, {peso}) → {self.ruta_optima[i + 1]}")
         funcion_transicion = "\n".join(transiciones)
 
         self.resultado_label.config(
-            text=f"Estado inicial: {self.start}   |   Estado final: {self.end}\n"
-                 f"Conjunto de estados: {{{estados}}}\n"
-                 f"Alfabeto Σ: {alfabeto}\n\n"
-                 f"Ruta óptima: {' → '.join(self.ruta_optima)}   |   Peso total: {peso_total}\n\n"
-                 f"Función de transición δ:\n{funcion_transicion}"
+            text=(
+                f"Estado inicial: {self.start}   |   Estado final: {self.end}\n"
+                f"Conjunto de estados: {{{estados}}}\n"
+                f"Alfabeto Σ: {alfabeto}\n\n"
+                f"Ruta óptima: {' → '.join(self.ruta_optima)}   |   Peso total: {peso_total}\n\n"
+                f"Función de transición δ:\n{funcion_transicion}"
+            )
         )
 
         self.grafo_animado.animar(self.G, self.ruta_optima)
 
         posiciones = self.pos if self.pos else coordenadas_puntos
         mapa = folium.Map(location=posiciones[self.start], zoom_start=14, tiles="OpenStreetMap")
+
+        car_icon_url = 'https://cdn-icons-png.flaticon.com/512/743/743922.png'
+        from folium.features import CustomIcon
+
+        if self.ruta_optima:
+            coord_inicio = [posiciones[self.ruta_optima[0]][0], posiciones[self.ruta_optima[0]][1]]
+            car_icon = CustomIcon(car_icon_url, icon_size=(40, 40))
+            folium.Marker(location=coord_inicio, icon=car_icon, popup="Inicio ruta").add_to(mapa)
 
         for nombre, (lat, lon) in coordenadas_puntos.items():
             folium.Marker(location=(lat, lon), popup=nombre, icon=folium.Icon(color="blue", icon="info-sign")).add_to(mapa)
@@ -262,15 +328,21 @@ class App:
             locations=coords,
             dash_array=[20, 30],
             delay=300,
-            color='#00FFFF',
-            pulse_color='#005757',
+            color="#00FFFF",
+            pulse_color="#005757",
             weight=9,
-            opacity=0.9
+            opacity=0.9,
         ).add_to(mapa)
 
         for u_, v_, d_ in self.G.edges(data=True):
             if d_.get("blocked", False):
-                folium.PolyLine([posiciones[u_], posiciones[v_]], color="red", weight=5, opacity=0.7, dash_array='5').add_to(mapa)
+                folium.PolyLine(
+                    [posiciones[u_], posiciones[v_]],
+                    color="red",
+                    weight=5,
+                    opacity=0.7,
+                    dash_array="5",
+                ).add_to(mapa)
 
         for nodo, (lat, lon) in posiciones.items():
             folium.CircleMarker(
@@ -280,15 +352,17 @@ class App:
                 fill=True,
                 fill_color="#00FFFF" if nodo in self.ruta_optima else "gray",
                 fill_opacity=1.0,
-                popup=f"Estado {nodo}"
+                popup=f"Estado {nodo}",
             ).add_to(mapa)
 
         mapa.save("simulacion_waze.html")
-        webbrowser.open("simulacion_waze.html")
+        import os
+        file_path = os.path.abspath("simulacion_waze.html")
+        webbrowser.open(f"file://{file_path}")
 
     def _recalculate(self):
-        self.start = self.start_entry.get().strip().upper()
-        self.end = self.end_entry.get().strip().upper()
+        self.start = self.start_combo.get().split(" - ")[0]
+        self.end = self.end_combo.get().split(" - ")[0]
 
         self.G = generar_grafo_medellin()
         self.ruta_optima, peso_total, _ = generar_mapa_waze(self.start, self.end, self.G)
@@ -300,64 +374,26 @@ class App:
         if self.ruta_optima:
             transiciones = []
             for i in range(len(self.ruta_optima) - 1):
-                peso = self.G[self.ruta_optima[i]][self.ruta_optima[i + 1]]['weight']
+                peso = self.G[self.ruta_optima[i]][self.ruta_optima[i + 1]]["weight"]
                 transiciones.append(f"δ({self.ruta_optima[i]}, {peso}) → {self.ruta_optima[i + 1]}")
             funcion_transicion = "\n".join(transiciones)
 
             self.resultado_label.config(
-                text=f"Estado inicial: {self.start}   |   Estado final: {self.end}\n"
-                     f"Conjunto de estados: {{{estados}}}\n"
-                     f"Alfabeto Σ: {alfabeto}\n\n"
-                     f"Ruta óptima: {' → '.join(self.ruta_optima)}   |   Peso total: {peso_total}\n\n"
-                     f"Función de transición δ:\n{funcion_transicion}"
+                text=(
+                    f"Estado inicial: {self.start}   |   Estado final: {self.end}\n"
+                    f"Conjunto de estados: {{{estados}}}\n"
+                    f"Alfabeto Σ: {alfabeto}\n\n"
+                    f"Ruta óptima: {' → '.join(self.ruta_optima)}   |   Peso total: {peso_total}\n\n"
+                    f"Función de transición δ:\n{funcion_transicion}"
+                )
             )
         else:
             self.resultado_label.config(text=f"No hay rutas disponibles desde {self.start} hasta {self.end}.")
 
         self.grafo_animado.animar(self.G, self.ruta_optima)
 
-        posiciones = self.pos if self.pos else coordenadas_puntos
-        mapa = folium.Map(location=posiciones[self.start], zoom_start=14, tiles="OpenStreetMap")
 
-        for nombre, (lat, lon) in coordenadas_puntos.items():
-            folium.Marker(location=(lat, lon), popup=nombre, icon=folium.Icon(color="blue", icon="info-sign")).add_to(mapa)
-
-        for path in nx.all_simple_paths(self.G, source=self.start, target=self.end):
-            puntos = [self.pos[n] for n in path]
-            folium.PolyLine(puntos, color="gray", weight=3, opacity=0.4).add_to(mapa)
-
-        coords = [self.pos[n] for n in self.ruta_optima]
-        folium.PolyLine(coords, color="#00FFFF", weight=8, opacity=0.9).add_to(mapa)
-
-        AntPath(
-            locations=coords,
-            dash_array=[20, 30],
-            delay=300,
-            color='#00FFFF',
-            pulse_color='#005757',
-            weight=9,
-            opacity=0.9
-        ).add_to(mapa)
-
-        for u_, v_, d_ in self.G.edges(data=True):
-            if d_.get("blocked", False):
-                folium.PolyLine([self.pos[u_], self.pos[v_]], color="red", weight=5, opacity=0.7, dash_array='5').add_to(mapa)
-
-        for nodo, (lat, lon) in self.pos.items():
-            folium.CircleMarker(
-                location=(lat, lon),
-                radius=8,
-                color="white" if nodo not in self.ruta_optima else "#00FFFF",
-                fill=True,
-                fill_color="#00FFFF" if nodo in self.ruta_optima else "gray",
-                fill_opacity=1.0,
-                popup=f"Estado {nodo}"
-            ).add_to(mapa)
-
-        mapa.save("simulacion_waze.html")
-        webbrowser.open("simulacion_waze.html")
-
-if __name__=="__main__":
-    root=tk.Tk()
-    app=App(root)
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = App(root)
     root.mainloop()
